@@ -3,7 +3,7 @@ name: Build Heltec V3 GPIO Firmware
 on:
   push:
     branches:
-      - meshcore-1.16-heltec-gpio-v3-work
+      - meshcore-1.16-heltec-gpio-v4-work
   workflow_dispatch:
 
 jobs:
@@ -16,8 +16,8 @@ jobs:
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-environment
 
-      - name: Apply Heltec GPIO patch
-        run: python3 tools/patch_heltec_gpio.py
+      - name: Apply Heltec GPIO V4 patch
+        run: python3 tools/patch_heltec_gpio_v4.py
 
       - name: Build Heltec V3 BLE firmware
         run: pio run -e Heltec_v3_companion_radio_ble
@@ -28,11 +28,11 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V3-BLE.bin
-          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V3-USB.bin
+          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V4-BLE.bin
+          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V4-USB.bin
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV3-GPIO-V3
+          name: MeshCore-1.16.0-HeltecV3-GPIO-V4
           path: out/*.bin
