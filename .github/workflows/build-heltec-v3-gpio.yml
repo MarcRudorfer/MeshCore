@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 4D
+name: Build Heltec V4 V5 Diagnostic 4E
 
 on:
   push:
@@ -52,10 +52,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4D-BLE.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4E-BLE.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4D
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4E
           path: out/*.bin
