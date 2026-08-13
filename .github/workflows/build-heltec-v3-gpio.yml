@@ -46,6 +46,9 @@ jobs:
       - name: Apply diagnostic OUT4 isolated runtime path
         run: python3 tools/patch_heltec_v4_v5_diag3.py
 
+      - name: Check DIAG4E OUT4 timer helper
+        run: python3 tools/diag4e_out4_timer.py
+
       - name: Build Heltec V4 BLE firmware
         run: pio run -e heltec_v4_companion_radio_ble
 
