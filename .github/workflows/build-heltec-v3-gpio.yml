@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 4C
+name: Build Heltec V4 V5 Diagnostic 4D
 
 on:
   push:
@@ -29,7 +29,6 @@ jobs:
               '  -D REMOTE_GPIO_OUT1=4\n'
               '  -D REMOTE_GPIO_OUT2=26\n'
               '  -D REMOTE_GPIO_OUT3=47\n'
-              '  -D REMOTE_GPIO_OUT4=45\n'
               '  -D REMOTE_GPIO_IN1=3\n'
               '  -D REMOTE_GPIO_IN2=6\n'
               '  -D REMOTE_GPIO_IN3=33\n'
@@ -44,7 +43,7 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Apply diagnostic OUT4 runtime path
+      - name: Apply diagnostic OUT4 isolated runtime path
         run: python3 tools/patch_heltec_v4_v5_diag3.py
 
       - name: Build Heltec V4 BLE firmware
@@ -53,10 +52,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4C-BLE.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4D-BLE.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4C
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4D
           path: out/*.bin
