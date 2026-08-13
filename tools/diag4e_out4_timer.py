@@ -1,0 +1,6 @@
+# Helper used by the Heltec V4 DIAG4E build.
+# OUT4 remains isolated from REMOTE_GPIO_OUT4.
+
+OUT4_RUNTIME_PIN = 45
+OUT4_TIMER_MIN_SECONDS = 1
+OUT4_TIMER_MAX_SECONDS = 3600
