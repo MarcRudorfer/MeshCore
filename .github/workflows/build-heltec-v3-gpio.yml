@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 2
+name: Build Heltec V4 V5 Diagnostic 3
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Diagnostic step 2 - peer state and LINK PAIR
+      - name: Diagnostic step 3 - LINK PAIR and remote OUT receive
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -58,10 +58,75 @@ jobs:
           s = s.replace(anchor, extra, 1)
 
           anchor = '  bool gpio_command_recognized = false;\n\n'
-          pair = '''  bool gpio_command_recognized = false;\n\n  if (strcmp(text, "LINK PAIR") == 0) {\n    gpio_link_peer = from;\n    gpio_link_peer_valid = true;\n    gpio_reply = "LINK PAIRED";\n    gpio_command_recognized = true;\n  }\n\n  if (strcmp(text, "LINK STATUS") == 0 || strcmp(text, "LINK STATUS?") == 0) {\n    gpio_reply = gpio_link_peer_valid ? "LINK = PAIRED" : "LINK = UNPAIRED";\n    gpio_command_recognized = true;\n  }\n\n'''
+          block = r'''  bool gpio_command_recognized = false;
+
+  bool gpio_link_sender_ok = gpio_link_peer_valid &&
+      memcmp(from.id.pub_key, gpio_link_peer.id.pub_key, PUB_KEY_SIZE) == 0;
+
+  if (strcmp(text, "LINK PAIR") == 0) {
+    gpio_link_peer = from;
+    gpio_link_peer_valid = true;
+    gpio_link_sender_ok = true;
+    gpio_reply = "LINK PAIRED";
+    gpio_command_recognized = true;
+  }
+
+  if (strcmp(text, "LINK STATUS") == 0 || strcmp(text, "LINK STATUS?") == 0) {
+    gpio_reply = gpio_link_peer_valid ? "LINK = PAIRED" : "LINK = UNPAIRED";
+    gpio_command_recognized = true;
+  }
+
+  if (gpio_link_sender_ok) {
+#ifdef REMOTE_GPIO_OUT1
+    if (strcmp(text, "LINK OUT1 ON") == 0) {
+      gpio_out1_timer_expiry = 0; gpio_out1_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT1, HIGH);
+      gpio_reply = "LINK ACK OUT1 ON"; gpio_command_recognized = true;
+    } else if (strcmp(text, "LINK OUT1 OFF") == 0) {
+      gpio_out1_timer_expiry = 0; gpio_out1_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT1, LOW);
+      gpio_reply = "LINK ACK OUT1 OFF"; gpio_command_recognized = true;
+    }
+#endif
+#ifdef REMOTE_GPIO_OUT2
+    if (strcmp(text, "LINK OUT2 ON") == 0) {
+      gpio_out2_timer_expiry = 0; gpio_out2_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT2, HIGH);
+      gpio_reply = "LINK ACK OUT2 ON"; gpio_command_recognized = true;
+    } else if (strcmp(text, "LINK OUT2 OFF") == 0) {
+      gpio_out2_timer_expiry = 0; gpio_out2_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT2, LOW);
+      gpio_reply = "LINK ACK OUT2 OFF"; gpio_command_recognized = true;
+    }
+#endif
+#ifdef REMOTE_GPIO_OUT3
+    if (strcmp(text, "LINK OUT3 ON") == 0) {
+      gpio_out3_timer_expiry = 0; gpio_out3_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT3, HIGH);
+      gpio_reply = "LINK ACK OUT3 ON"; gpio_command_recognized = true;
+    } else if (strcmp(text, "LINK OUT3 OFF") == 0) {
+      gpio_out3_timer_expiry = 0; gpio_out3_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT3, LOW);
+      gpio_reply = "LINK ACK OUT3 OFF"; gpio_command_recognized = true;
+    }
+#endif
+#ifdef REMOTE_GPIO_OUT4
+    if (strcmp(text, "LINK OUT4 ON") == 0) {
+      gpio_out4_timer_expiry = 0; gpio_out4_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT4, HIGH);
+      gpio_reply = "LINK ACK OUT4 ON"; gpio_command_recognized = true;
+    } else if (strcmp(text, "LINK OUT4 OFF") == 0) {
+      gpio_out4_timer_expiry = 0; gpio_out4_timer_contact_valid = false;
+      digitalWrite(REMOTE_GPIO_OUT4, LOW);
+      gpio_reply = "LINK ACK OUT4 OFF"; gpio_command_recognized = true;
+    }
+#endif
+  }
+
+'''
           if anchor not in s:
-              raise SystemExit('LINK PAIR anchor not found')
-          s = s.replace(anchor, pair, 1)
+              raise SystemExit('LINK receive anchor not found')
+          s = s.replace(anchor, block, 1)
           p.write_text(s)
           PY
 
@@ -71,10 +136,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG2-BLE.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG3-BLE.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG2
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG3
           path: out/*.bin
