@@ -13,6 +13,7 @@ static volatile uint8_t gpio_link_out3_runtime_pin = REMOTE_GPIO_OUT3;
 // DIAG4D: OUT4 is intentionally NOT defined through REMOTE_GPIO_OUT4.
 // Keep it completely isolated from the base OUT4 implementation.
 static volatile uint8_t gpio_link_out4_runtime_pin = 45;
+static uint32_t gpio_link_out4_expiry = 0;
 '''
 if anchor not in s:
     raise SystemExit('peer-state anchor not found')
