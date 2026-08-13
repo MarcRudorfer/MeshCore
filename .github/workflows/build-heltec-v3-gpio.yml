@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 4I
+name: Build Heltec V4 V5 Diagnostic 4J
 
 on:
   push:
@@ -46,8 +46,8 @@ jobs:
       - name: Apply isolated OUT4 runtime path with timer state only
         run: python3 tools/patch_heltec_v4_v5_diag3.py
 
-      - name: Apply separate OUT4 timer handler test
-        run: python3 tools/diag4i_handler_call.py
+      - name: Move OUT4 ON OFF out of main parser
+        run: python3 tools/diag4j_move_onoff.py
 
       - name: Build Heltec V4 BLE firmware
         run: pio run -e heltec_v4_companion_radio_ble
@@ -55,10 +55,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4I-BLE.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4J-BLE.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4I
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4J
           path: out/*.bin
