@@ -35,8 +35,9 @@ jobs:
               '  -D REMOTE_GPIO_IN3=33\n'
               '  -D REMOTE_GPIO_IN4=15\n'
           )
+          base_flags = '$' + '{heltec_v4_oled.build_flags}'
           for env in ('heltec_v4_companion_radio_usb', 'heltec_v4_companion_radio_ble'):
-              anchor = f'[env:{env}]\nextends = heltec_v4_oled\nbuild_flags =\n  ${{heltec_v4_oled.build_flags}}\n'
+              anchor = f'[env:{env}]\nextends = heltec_v4_oled\nbuild_flags =\n  {base_flags}\n'
               if anchor not in s:
                   raise SystemExit(f'{env} anchor not found')
               s = s.replace(anchor, anchor + flags, 1)
