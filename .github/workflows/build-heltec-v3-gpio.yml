@@ -1,9 +1,9 @@
-name: Build Heltec V3 GPIO V4 Final Firmware
+name: Build Heltec V4 GPIO Firmware
 
 on:
   push:
     branches:
-      - meshcore-1.16-heltec-gpio-v4-final
+      - meshcore-1.16-heltec-v4-gpio-work
   workflow_dispatch:
 
 jobs:
@@ -16,23 +16,48 @@ jobs:
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-environment
 
-      - name: Apply final Heltec GPIO V4 patch
+      - name: Apply tested GPIO logic
         run: python3 tools/patch_heltec_gpio_v4_final.py
 
-      - name: Build Heltec V3 BLE firmware
-        run: pio run -e Heltec_v3_companion_radio_ble
+      - name: Add Heltec V4 GPIO mapping
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('variants/heltec_v4/platformio.ini')
+          s = p.read_text()
+          flags = (
+              '  -D REMOTE_GPIO_OUT1=4\n'
+              '  -D REMOTE_GPIO_OUT2=26\n'
+              '  -D REMOTE_GPIO_OUT3=47\n'
+              '  -D REMOTE_GPIO_OUT4=48\n'
+              '  -D REMOTE_GPIO_IN1=3\n'
+              '  -D REMOTE_GPIO_IN2=6\n'
+              '  -D REMOTE_GPIO_IN3=33\n'
+              '  -D REMOTE_GPIO_IN4=15\n'
+          )
+          for env in ('heltec_v4_companion_radio_usb', 'heltec_v4_companion_radio_ble'):
+              anchor = f'[env:{env}]\nextends = heltec_v4_oled\nbuild_flags =\n  ${{heltec_v4_oled.build_flags}}\n'
+              if anchor not in s:
+                  raise SystemExit(f'{env} anchor not found')
+              s = s.replace(anchor, anchor + flags, 1)
+          p.write_text(s)
+          print('Heltec V4 GPIO mapping applied')
+          PY
 
-      - name: Build Heltec V3 USB firmware
-        run: pio run -e Heltec_v3_companion_radio_usb
+      - name: Build Heltec V4 BLE firmware
+        run: pio run -e heltec_v4_companion_radio_ble
+
+      - name: Build Heltec V4 USB firmware
+        run: pio run -e heltec_v4_companion_radio_usb
 
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V4-FINAL-BLE.bin
-          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V4-FINAL-USB.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-GPIO-BLE.bin
+          cp .pio/build/heltec_v4_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV4-GPIO-USB.bin
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV3-GPIO-V4-FINAL
+          name: MeshCore-1.16.0-HeltecV4-GPIO
           path: out/*.bin
