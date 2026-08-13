@@ -28,7 +28,7 @@ jobs:
           flags = (
               '  -D REMOTE_GPIO_OUT1=4\n'
               '  -D REMOTE_GPIO_OUT2=26\n'
-              '  -D REMOTE_GPIO_OUT3=47\n'
+              '  -D REMOTE_GPIO_OUT3=40\n'
               '  -D REMOTE_GPIO_OUT4=48\n'
               '  -D REMOTE_GPIO_IN1=3\n'
               '  -D REMOTE_GPIO_IN2=6\n'
