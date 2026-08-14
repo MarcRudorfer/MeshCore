@@ -14,15 +14,12 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-environment
-      - name: Apply real XIAO GPIO V1 command logic
+      - name: Apply XIAO GPIO V1 Build 5 logic
         run: python3 tools/patch_xiao_gpio_v1.py
-      - name: Disable Wire init and prepare GPIO flags
+      - name: Prepare GPIO flags
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          # Keep PIN_WIRE_SCL/SDA defined because the nRF52 Wire library
-          # requires them at compile time, but do not initialize Wire.
           p=Path('variants/xiao_nrf52/platformio.ini')
           s=p.read_text()
           env='[env:Xiao_nrf52_companion_radio_ble]'
@@ -34,20 +31,10 @@ jobs:
             '  -D REMOTE_GPIO_OUT1=D6\n'
             '  -D REMOTE_GPIO_OUT2=D7\n'
             '  -D XIAO_GPIO_VARIANT=1\n'
-            '  -D XIAO_GPIO_NO_WIRE=1\n'
           )
           s=s[:i]+flags+s[i:]
           p.write_text(s)
-
-          b=Path('variants/xiao_nrf52/XiaoNrf52Board.cpp')
-          x=b.read_text()
-          old='  Wire.begin();'
-          new='#ifndef XIAO_GPIO_NO_WIRE\n  Wire.begin();\n#endif'
-          if old not in x:
-            raise SystemExit('Wire.begin anchor not found')
-          x=x.replace(old,new,1)
-          b.write_text(x)
-          print('Build 4: Wire pin defines retained, Wire.begin disabled; D6/D7 reserved for GPIO')
+          print('Build 5: stock Wire config retained; firmware releases Wire after board.begin')
           PY
       - name: Build XIAO nRF52 BLE V1
         run: pio run -e Xiao_nrf52_companion_radio_ble
@@ -55,12 +42,12 @@ jobs:
         run: |
           mkdir -p out
           find .pio/build/Xiao_nrf52_companion_radio_ble -maxdepth 1 -type f -print
-          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT.hex
-          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT.zip
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT-BUILD5.hex
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT-BUILD5.zip
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT
+          name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-BUILD5
           path: |
             out/*.hex
             out/*.zip
