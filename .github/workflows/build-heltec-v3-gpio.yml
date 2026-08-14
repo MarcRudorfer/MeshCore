@@ -1,4 +1,4 @@
-name: Build Heltec V4 LINK CH1-CH4
+name: Build Heltec V4 LINK CH1-CH2
 
 on:
   push:
@@ -16,8 +16,8 @@ jobs:
         uses: ./.github/actions/setup-build-environment
       - name: Apply tested GPIO logic
         run: python3 tools/patch_heltec_gpio_v4_final.py
-      - name: Add verified LINK channels 1 through 4
-        run: python3 tools/patch_heltec_gpio_link_ch1_ch4.py
+      - name: Add explicit LINK channels 1 and 2
+        run: python3 tools/patch_heltec_gpio_link_ch1_ch2_explicit.py
       - name: Add verified Heltec V4 GPIO mapping
         run: |
           python3 - <<'PY'
@@ -46,9 +46,9 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1-CH4.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1-CH2.bin
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-LINK-CH1-CH4
+          name: MeshCore-1.16.0-HeltecV4-LINK-CH1-CH2
           path: out/*.bin
