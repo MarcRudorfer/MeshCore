@@ -2,6 +2,7 @@ from pathlib import Path
 
 # XIAO nRF52840 GPIO V1: D6/D7 are repurposed from I2C to two remote-controlled outputs.
 # Commands: OUT1 ON/OFF, OUT2 ON/OFF, STATUS. Replies are sent back as normal MeshCore messages.
+# Build 5 keeps the normal board Wire startup, then explicitly releases the I2C peripheral with Wire.end().
 
 p = Path('examples/companion_radio/MyMesh.cpp')
 s = p.read_text()
@@ -87,10 +88,20 @@ if old not in s:
 s = s.replace(old, new, 1)
 p.write_text(s)
 
-# D6/D7 are the stock I2C pins on this target. For GPIO V1, prevent the sensor layer
-# from taking ownership of those pins after MyMesh has configured them as outputs.
+# Keep the stock board.begin() path (including Wire.begin), then release TWIM so D6/D7
+# are no longer owned by the I2C peripheral before MeshCore configures them as GPIO outputs.
 p = Path('examples/companion_radio/main.cpp')
 s = p.read_text()
+inc = '#include <Mesh.h>\n'
+if inc not in s:
+    raise SystemExit('main include anchor not found')
+s = s.replace(inc, inc + '#ifdef XIAO_GPIO_VARIANT\n#include <Wire.h>\n#endif\n', 1)
+anchor = '  board.begin();\n'
+if anchor not in s:
+    raise SystemExit('board.begin anchor not found')
+s = s.replace(anchor, anchor + '#ifdef XIAO_GPIO_VARIANT\n  Wire.end();  // release D6/D7 after normal board startup\n#endif\n', 1)
+
+# Prevent sensor code from reinitialising I2C later.
 if '  sensors.begin();\n' not in s:
     raise SystemExit('sensors.begin anchor not found')
 s = s.replace('  sensors.begin();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.begin();\n#endif\n', 1)
@@ -99,4 +110,4 @@ if '  sensors.loop();\n' not in s:
 s = s.replace('  sensors.loop();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.loop();\n#endif\n', 1)
 p.write_text(s)
 
-print('XIAO GPIO V1 logic applied: D6=OUT1, D7=OUT2, sensors disabled for GPIO ownership')
+print('XIAO GPIO V1 Build 5: normal Wire startup, then Wire.end(); D6=OUT1 D7=OUT2')
