@@ -1,0 +1,56 @@
+name: Build XIAO nRF52 GPIO V2 LINK
+
+on:
+  push:
+    branches:
+      - meshcore-1.16-xiao-nrf-gpio-4versions
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-build-environment
+      - name: Apply XIAO GPIO V2 LINK logic
+        run: python3 tools/patch_xiao_gpio_v2_link.py
+      - name: Remap Wire and prepare V2 LINK GPIO flags
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('variants/xiao_nrf52/platformio.ini')
+          s=p.read_text()
+          # Same proven hardware basis as V1/V2 FINAL: move Wire away from D6/D7.
+          s=s.replace('  -D PIN_WIRE_SCL=D6\n', '  -D PIN_WIRE_SCL=16\n')
+          s=s.replace('  -D PIN_WIRE_SDA=D7\n', '  -D PIN_WIRE_SDA=17\n')
+          env='[env:Xiao_nrf52_companion_radio_ble]'
+          pos=s.index(env)
+          tail=s[pos:]
+          anchor='  ${Xiao_nrf52.build_flags}\n'
+          i=tail.index(anchor)+pos+len(anchor)
+          flags=(
+            '  -D REMOTE_GPIO_IN1=D6\n'
+            '  -D REMOTE_GPIO_OUT1=D7\n'
+            '  -D XIAO_GPIO_VARIANT=21\n'
+          )
+          s=s[:i]+flags+s[i:]
+          p.write_text(s)
+          print('V2 LINK: Wire=16/17, D6=IN1, D7=OUT1')
+          PY
+      - name: Build XIAO nRF52 BLE V2 LINK
+        run: pio run -e Xiao_nrf52_companion_radio_ble
+      - name: Collect firmware
+        run: |
+          mkdir -p out
+          find .pio/build/Xiao_nrf52_companion_radio_ble -maxdepth 1 -type f -print
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V2-LINK-D6-IN-D7-OUT.hex
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V2-LINK-D6-IN-D7-OUT.zip
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V2-LINK-D6-IN-D7-OUT
+          path: |
+            out/*.hex
+            out/*.zip
