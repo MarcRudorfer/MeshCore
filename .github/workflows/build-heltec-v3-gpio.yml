@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 4V BYPASS ONMESSAGE
+name: Build Heltec V4 V5 Diagnostic 4W NO MARK CONNECTION
 
 on:
   push:
@@ -70,8 +70,8 @@ jobs:
       - name: Skip offline queue for incoming contact message
         run: python3 tools/diag4u_skip_offline_queue.py
 
-      - name: Bypass incoming text callback completely
-        run: python3 tools/diag4v_bypass_onmessage.py
+      - name: Skip markConnectionActive only
+        run: python3 tools/diag4w_skip_mark_connection.py
 
       - name: Build Heltec V4 BLE firmware
         run: pio run -e heltec_v4_companion_radio_ble
@@ -79,10 +79,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4V-BYPASS-ONMESSAGE.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4W-NO-MARK-CONNECTION.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4V-BYPASS-ONMESSAGE
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4W-NO-MARK-CONNECTION
           path: out/*.bin
