@@ -16,12 +16,14 @@ jobs:
         uses: ./.github/actions/setup-build-environment
       - name: Apply real XIAO GPIO V1 command logic
         run: python3 tools/patch_xiao_gpio_v1.py
-      - name: Prepare XIAO V1 GPIO flags
+      - name: Free D6/D7 from Wire and prepare GPIO flags
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('variants/xiao_nrf52/platformio.ini')
           s=p.read_text()
+          s=s.replace('  -D PIN_WIRE_SCL=D6\n', '')
+          s=s.replace('  -D PIN_WIRE_SDA=D7\n', '')
           env='[env:Xiao_nrf52_companion_radio_ble]'
           pos=s.index(env)
           tail=s[pos:]
@@ -31,10 +33,16 @@ jobs:
             '  -D REMOTE_GPIO_OUT1=D6\n'
             '  -D REMOTE_GPIO_OUT2=D7\n'
             '  -D XIAO_GPIO_VARIANT=1\n'
+            '  -D XIAO_GPIO_NO_WIRE=1\n'
           )
           s=s[:i]+flags+s[i:]
           p.write_text(s)
-          print('XIAO V1 flags added: D6 OUT1, D7 OUT2')
+
+          b=Path('variants/xiao_nrf52/XiaoNrf52Board.cpp')
+          x=b.read_text()
+          x=x.replace('  Wire.begin();', '#ifndef XIAO_GPIO_NO_WIRE\n  Wire.begin();\n#endif')
+          b.write_text(x)
+          print('D6/D7 freed from I2C/Wire for GPIO V1')
           PY
       - name: Build XIAO nRF52 BLE V1
         run: pio run -e Xiao_nrf52_companion_radio_ble
