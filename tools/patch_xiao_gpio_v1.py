@@ -1,8 +1,8 @@
 from pathlib import Path
 
-# XIAO nRF52840 GPIO V1 Build 6
-# D6/D7 are repurposed from I2C to two remote-controlled outputs.
-# Keep normal board startup, release Wire, then explicitly re-start SPI before radio_init().
+# XIAO nRF52840 GPIO V1 Build 7
+# Keep the stock Wire/TWIM lifecycle completely intact. The workflow moves
+# PIN_WIRE_SCL/SDA away from D6/D7, leaving those pins exclusively for GPIO.
 
 p = Path('examples/companion_radio/MyMesh.cpp')
 s = p.read_text()
@@ -88,29 +88,10 @@ if old not in s:
 s = s.replace(old, new, 1)
 p.write_text(s)
 
+# Do not touch Wire in main.cpp. Only prevent sensor polling for this GPIO build,
+# because there is no external I2C sensor attached to the remapped bus.
 p = Path('examples/companion_radio/main.cpp')
 s = p.read_text()
-inc = '#include <Mesh.h>\n'
-if inc not in s:
-    raise SystemExit('main include anchor not found')
-s = s.replace(inc, inc + '#ifdef XIAO_GPIO_VARIANT\n#include <Wire.h>\n#include <SPI.h>\n#endif\n', 1)
-anchor = '  board.begin();\n'
-if anchor not in s:
-    raise SystemExit('board.begin anchor not found')
-s = s.replace(anchor, anchor + '''#ifdef XIAO_GPIO_VARIANT
-  // Wire/TWIM owns D6/D7 after the stock board startup. Release it, then
-  // explicitly reinitialize SPI before radio_init(), because on nRF52 these
-  // peripheral instances can share hardware resources.
-  Wire.end();
-  SPI.begin();
-  digitalWrite(REMOTE_GPIO_OUT1, LOW);
-  pinMode(REMOTE_GPIO_OUT1, OUTPUT);
-  digitalWrite(REMOTE_GPIO_OUT2, LOW);
-  pinMode(REMOTE_GPIO_OUT2, OUTPUT);
-#endif
-''', 1)
-
-# Prevent sensor code from reinitialising I2C later.
 if '  sensors.begin();\n' not in s:
     raise SystemExit('sensors.begin anchor not found')
 s = s.replace('  sensors.begin();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.begin();\n#endif\n', 1)
@@ -119,4 +100,4 @@ if '  sensors.loop();\n' not in s:
 s = s.replace('  sensors.loop();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.loop();\n#endif\n', 1)
 p.write_text(s)
 
-print('XIAO GPIO V1 Build 6: Wire.end + SPI.begin before radio_init; D6=OUT1 D7=OUT2')
+print('XIAO GPIO V1 Build 7: Wire untouched; D6=OUT1 D7=OUT2')
