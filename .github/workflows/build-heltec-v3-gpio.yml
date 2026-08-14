@@ -1,4 +1,4 @@
-name: Build Heltec V4 LINK PAIR ONLY
+name: Build Heltec V4 LINK CH1
 
 on:
   push:
@@ -19,8 +19,8 @@ jobs:
       - name: Apply tested GPIO logic
         run: python3 tools/patch_heltec_gpio_v4_final.py
 
-      - name: Add LINK PAIR and STATUS only
-        run: python3 tools/patch_heltec_gpio_link_pair_only.py
+      - name: Add LINK channel 1 only
+        run: python3 tools/patch_heltec_gpio_link_ch1.py
 
       - name: Add verified Heltec V4 GPIO mapping
         run: |
@@ -53,10 +53,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-PAIR-ONLY.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-LINK-PAIR-ONLY
+          name: MeshCore-1.16.0-HeltecV4-LINK-CH1
           path: out/*.bin
