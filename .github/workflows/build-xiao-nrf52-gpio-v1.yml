@@ -40,9 +40,12 @@ jobs:
         run: |
           mkdir -p out
           find .pio/build/Xiao_nrf52_companion_radio_ble -maxdepth 1 -type f -print
-          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.uf2 out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT.uf2
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT.hex
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT.zip
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
           name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT
-          path: out/*.uf2
+          path: |
+            out/*.hex
+            out/*.zip
