@@ -1,4 +1,4 @@
-name: Build Heltec V4 LINK CH1
+name: Build Heltec V4 LINK CH1-CH4
 
 on:
   push:
@@ -12,16 +12,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-environment
-
       - name: Apply tested GPIO logic
         run: python3 tools/patch_heltec_gpio_v4_final.py
-
-      - name: Add LINK channel 1 only
-        run: python3 tools/patch_heltec_gpio_link_ch1.py
-
+      - name: Add verified LINK channels 1 through 4
+        run: python3 tools/patch_heltec_gpio_link_ch1_ch4.py
       - name: Add verified Heltec V4 GPIO mapping
         run: |
           python3 - <<'PY'
@@ -41,22 +37,18 @@ jobs:
           base_flags = '$' + '{heltec_v4_oled.build_flags}'
           for env in ('heltec_v4_companion_radio_usb', 'heltec_v4_companion_radio_ble'):
               anchor = f'[env:{env}]\nextends = heltec_v4_oled\nbuild_flags =\n  {base_flags}\n'
-              if anchor not in s:
-                  raise SystemExit(f'{env} anchor not found')
+              if anchor not in s: raise SystemExit(f'{env} anchor not found')
               s = s.replace(anchor, anchor + flags, 1)
           p.write_text(s)
           PY
-
       - name: Build Heltec V4 BLE firmware
         run: pio run -e heltec_v4_companion_radio_ble
-
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1.bin
-
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1-CH4.bin
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-LINK-CH1
+          name: MeshCore-1.16.0-HeltecV4-LINK-CH1-CH4
           path: out/*.bin
