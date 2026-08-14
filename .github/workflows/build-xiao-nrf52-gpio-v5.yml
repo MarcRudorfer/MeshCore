@@ -1,0 +1,33 @@
+name: Build XIAO nRF52 GPIO V5 Dual PWM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - meshcore-1.16-xiao-nrf-gpio-v5-dual-pwm-work
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-build-environment
+      - name: Apply XIAO GPIO V5 PWM logic
+        run: python tools/patch_xiao_gpio_v5_dual_pwm.py
+      - name: Remap Wire and prepare V5 PWM flags
+        run: |
+          sed -i 's/-D PIN_WIRE_SDA=6/-D PIN_WIRE_SDA=16/' variants/xiao_nrf52/platformio.ini
+          sed -i 's/-D PIN_WIRE_SCL=7/-D PIN_WIRE_SCL=17/' variants/xiao_nrf52/platformio.ini
+          sed -i '/\${xiao_nrf52.build_flags}/a\  -D XIAO_GPIO_VARIANT=1\n  -D REMOTE_PWM_OUT1=6\n  -D REMOTE_PWM_OUT2=7' variants/xiao_nrf52/platformio.ini
+      - name: Build XIAO nRF52 BLE V5
+        run: pio run -e Xiao_nrf52_companion_radio_ble
+      - name: Collect firmware
+        run: |
+          mkdir -p firmware-v5
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex firmware-v5/MeshCore-1.16.0-XIAO-nRF52-GPIO-V5-D6-PWM1-D7-PWM2.hex
+          if [ -f .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip ]; then cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip firmware-v5/MeshCore-1.16.0-XIAO-nRF52-GPIO-V5-WebFlasher.zip; fi
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V5-D6-PWM1-D7-PWM2
+          path: firmware-v5/
