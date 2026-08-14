@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 4R NO SENSOR LOOP
+name: Build Heltec V4 V5 Diagnostic 4S NO UI NEWMSG
 
 on:
   push:
@@ -61,16 +61,19 @@ jobs:
       - name: Skip sensor loop
         run: python3 tools/diag4r_skip_sensor_loop.py
 
+      - name: Skip UI newMsg on incoming contact messages
+        run: python3 tools/diag4s_skip_ui_newmsg.py
+
       - name: Build Heltec V4 BLE firmware
         run: pio run -e heltec_v4_companion_radio_ble
 
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4R-NO-SENSOR-LOOP.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4S-NO-UI-NEWMSG.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4R-NO-SENSOR-LOOP
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4S-NO-UI-NEWMSG
           path: out/*.bin
