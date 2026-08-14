@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 FINAL 3OUT 4IN SAFE PINS
+name: Build Heltec V4 FINAL 3OUT 4IN VERIFIED PINS
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
       - name: Apply tested GPIO logic
         run: python3 tools/patch_heltec_gpio_v4_final.py
 
-      - name: Add final Heltec V4 GPIO mapping
+      - name: Add verified Heltec V4 GPIO mapping
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -31,8 +31,8 @@ jobs:
               '  -D REMOTE_GPIO_OUT3=47\n'
               '  -D REMOTE_GPIO_IN1=3\n'
               '  -D REMOTE_GPIO_IN2=6\n'
-              '  -D REMOTE_GPIO_IN3=5\n'
-              '  -D REMOTE_GPIO_IN4=7\n'
+              '  -D REMOTE_GPIO_IN3=45\n'
+              '  -D REMOTE_GPIO_IN4=48\n'
           )
           base_flags = '$' + '{heltec_v4_oled.build_flags}'
           for env in ('heltec_v4_companion_radio_usb', 'heltec_v4_companion_radio_ble'):
@@ -49,10 +49,10 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-FINAL-3OUT-4IN-SAFE-PINS.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-FINAL-3OUT-4IN-VERIFIED-PINS.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-FINAL-3OUT-4IN-SAFE-PINS
+          name: MeshCore-1.16.0-HeltecV4-FINAL-3OUT-4IN-VERIFIED-PINS
           path: out/*.bin
