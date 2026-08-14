@@ -14,14 +14,18 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-environment
-      - name: Apply XIAO GPIO V1 Build 5 logic
+      - name: Apply XIAO GPIO V1 Build 7 logic
         run: python3 tools/patch_xiao_gpio_v1.py
-      - name: Prepare GPIO flags
+      - name: Remap Wire and prepare GPIO flags
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('variants/xiao_nrf52/platformio.ini')
           s=p.read_text()
+          # Keep Wire fully alive, but move it away from D6/D7.
+          # D8/D9 are not used by this XIAO+SX1262 target.
+          s=s.replace('  -D PIN_WIRE_SCL=D6\n', '  -D PIN_WIRE_SCL=D8\n')
+          s=s.replace('  -D PIN_WIRE_SDA=D7\n', '  -D PIN_WIRE_SDA=D9\n')
           env='[env:Xiao_nrf52_companion_radio_ble]'
           pos=s.index(env)
           tail=s[pos:]
@@ -34,7 +38,7 @@ jobs:
           )
           s=s[:i]+flags+s[i:]
           p.write_text(s)
-          print('Build 5: stock Wire config retained; firmware releases Wire after board.begin')
+          print('Build 7: Wire moved to D8/D9; D6/D7 reserved for GPIO')
           PY
       - name: Build XIAO nRF52 BLE V1
         run: pio run -e Xiao_nrf52_companion_radio_ble
@@ -42,12 +46,12 @@ jobs:
         run: |
           mkdir -p out
           find .pio/build/Xiao_nrf52_companion_radio_ble -maxdepth 1 -type f -print
-          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT-BUILD5.hex
-          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT-BUILD5.zip
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT-BUILD7.hex
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip out/MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-D6-D7-OUT-BUILD7.zip
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-BUILD5
+          name: MeshCore-1.16.0-XIAO-nRF52-GPIO-V1-BUILD7
           path: |
             out/*.hex
             out/*.zip
