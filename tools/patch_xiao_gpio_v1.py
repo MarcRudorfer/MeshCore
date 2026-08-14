@@ -1,7 +1,7 @@
 from pathlib import Path
 
-# XIAO nRF52840 GPIO V1 Build 9
-# Stable Build-8 hardware setup stays untouched. Add timer commands only.
+# XIAO nRF52840 GPIO V1 Build 10
+# Stable Build-8 hardware setup stays untouched. Timer state/logic lives in MyMesh.
 
 p = Path('examples/companion_radio/MyMesh.cpp')
 s = p.read_text()
@@ -123,9 +123,22 @@ new = '''void MyMesh::begin(bool has_display) {
 if old not in s:
     raise SystemExit('begin anchor not found')
 s = s.replace(old, new, 1)
+
+# Build 10: timer expiry is a MyMesh method, so private timer globals never leak into main.cpp.
+timer_method = '''\nvoid MyMesh::processGpioTimers() {\n#ifdef REMOTE_GPIO_OUT1\n  if (gpio_out1_timer_expiry != 0 && (long)(millis() - gpio_out1_timer_expiry) >= 0) {\n    digitalWrite(REMOTE_GPIO_OUT1, LOW);\n    gpio_out1_timer_expiry = 0;\n    if (gpio_out1_timer_contact_valid) {\n      uint32_t expected_ack = 0, est_timeout = 0;\n      sendMessage(gpio_out1_timer_contact, getRTCClock()->getCurrentTimeUnique(), 0,\n                  "OUT1 = OFF (Timer beendet)", expected_ack, est_timeout);\n      gpio_out1_timer_contact_valid = false;\n    }\n  }\n#endif\n#ifdef REMOTE_GPIO_OUT2\n  if (gpio_out2_timer_expiry != 0 && (long)(millis() - gpio_out2_timer_expiry) >= 0) {\n    digitalWrite(REMOTE_GPIO_OUT2, LOW);\n    gpio_out2_timer_expiry = 0;\n    if (gpio_out2_timer_contact_valid) {\n      uint32_t expected_ack = 0, est_timeout = 0;\n      sendMessage(gpio_out2_timer_contact, getRTCClock()->getCurrentTimeUnique(), 0,\n                  "OUT2 = OFF (Timer beendet)", expected_ack, est_timeout);\n      gpio_out2_timer_contact_valid = false;\n    }\n  }\n#endif\n}\n'''
+s += timer_method
 p.write_text(s)
 
-# Main loop: keep Build-8 hardware path intact, disable unused sensors, add timer expiry handling.
+# Declare the timer service method.
+p = Path('examples/companion_radio/MyMesh.h')
+s = p.read_text()
+anchor = '  void loop();\n'
+if anchor not in s:
+    raise SystemExit('MyMesh.h loop anchor not found')
+s = s.replace(anchor, anchor + '  void processGpioTimers();\n', 1)
+p.write_text(s)
+
+# Main loop: keep Build-8 hardware path intact and only call into MyMesh.
 p = Path('examples/companion_radio/main.cpp')
 s = p.read_text()
 if '  sensors.begin();\n' not in s:
@@ -133,36 +146,7 @@ if '  sensors.begin();\n' not in s:
 s = s.replace('  sensors.begin();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.begin();\n#endif\n', 1)
 if '  sensors.loop();\n' not in s:
     raise SystemExit('sensors.loop anchor not found')
-timer_loop = '''#ifndef XIAO_GPIO_VARIANT
-  sensors.loop();
-#else
-#ifdef REMOTE_GPIO_OUT1
-  if (gpio_out1_timer_expiry != 0 && (long)(millis() - gpio_out1_timer_expiry) >= 0) {
-    digitalWrite(REMOTE_GPIO_OUT1, LOW);
-    gpio_out1_timer_expiry = 0;
-    if (gpio_out1_timer_contact_valid) {
-      uint32_t expected_ack = 0, est_timeout = 0;
-      the_mesh.sendMessage(gpio_out1_timer_contact, rtc_clock.getCurrentTimeUnique(), 0,
-                           "OUT1 = OFF (Timer beendet)", expected_ack, est_timeout);
-      gpio_out1_timer_contact_valid = false;
-    }
-  }
-#endif
-#ifdef REMOTE_GPIO_OUT2
-  if (gpio_out2_timer_expiry != 0 && (long)(millis() - gpio_out2_timer_expiry) >= 0) {
-    digitalWrite(REMOTE_GPIO_OUT2, LOW);
-    gpio_out2_timer_expiry = 0;
-    if (gpio_out2_timer_contact_valid) {
-      uint32_t expected_ack = 0, est_timeout = 0;
-      the_mesh.sendMessage(gpio_out2_timer_contact, rtc_clock.getCurrentTimeUnique(), 0,
-                           "OUT2 = OFF (Timer beendet)", expected_ack, est_timeout);
-      gpio_out2_timer_contact_valid = false;
-    }
-  }
-#endif
-#endif
-'''
-s = s.replace('  sensors.loop();\n', timer_loop, 1)
+s = s.replace('  sensors.loop();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.loop();\n#else\n  the_mesh.processGpioTimers();\n#endif\n', 1)
 p.write_text(s)
 
-print('XIAO GPIO V1 Build 9: stable Build-8 hardware + OUT1/OUT2 timers')
+print('XIAO GPIO V1 Build 10: stable Build-8 hardware + timers scoped inside MyMesh')
