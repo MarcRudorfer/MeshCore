@@ -16,9 +16,23 @@ jobs:
         run: python tools/patch_xiao_gpio_v5_dual_pwm.py
       - name: Remap Wire and prepare V5 PWM flags
         run: |
-          sed -i 's/-D PIN_WIRE_SDA=6/-D PIN_WIRE_SDA=16/' variants/xiao_nrf52/platformio.ini
-          sed -i 's/-D PIN_WIRE_SCL=7/-D PIN_WIRE_SCL=17/' variants/xiao_nrf52/platformio.ini
-          sed -i '/\${xiao_nrf52.build_flags}/a\  -D XIAO_GPIO_VARIANT=1\n  -D REMOTE_PWM_OUT1=6\n  -D REMOTE_PWM_OUT2=7' variants/xiao_nrf52/platformio.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('variants/xiao_nrf52/platformio.ini')
+          s = p.read_text()
+          s = s.replace('-D PIN_WIRE_SCL=D6', '-D PIN_WIRE_SCL=16')
+          s = s.replace('-D PIN_WIRE_SDA=D7', '-D PIN_WIRE_SDA=17')
+          anchor = '[env:Xiao_nrf52_companion_radio_ble]\nextends = Xiao_nrf52\nboard_build.ldscript = boards/nrf52840_s140_v7_extrafs.ld\nboard_upload.maximum_size = 708608\nbuild_flags =\n  ${Xiao_nrf52.build_flags}\n'
+          flags = '  -D XIAO_GPIO_VARIANT=1\n  -D REMOTE_PWM_OUT1=D6\n  -D REMOTE_PWM_OUT2=D7\n'
+          if anchor not in s:
+              raise SystemExit('XIAO BLE build_flags anchor not found')
+          s = s.replace(anchor, anchor + flags, 1)
+          p.write_text(s)
+          print('Verified: D6/D7 reclaimed from Wire and PWM flags injected into BLE env')
+          PY
+      - name: Verify V5 PWM build flags
+        run: |
+          grep -n "PIN_WIRE\|REMOTE_PWM\|XIAO_GPIO_VARIANT" variants/xiao_nrf52/platformio.ini
       - name: Build XIAO nRF52 BLE V5
         run: pio run -e Xiao_nrf52_companion_radio_ble
       - name: Collect firmware
