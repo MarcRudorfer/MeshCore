@@ -1,15 +1,17 @@
 from pathlib import Path
 
-# XIAO nRF52840 GPIO V2
+# XIAO nRF52840 GPIO V2 Build 2
 # D6 = IN1 (INPUT_PULLUP), D7 = OUT1.
 # Stable V1/Build-10 hardware approach is retained: Wire is remapped by workflow to 16/17.
 # Commands: IN1, STATUS, OUT1 ON/OFF, OUT1 <1..86400 seconds>.
+# New: automatic IN1 HIGH/LOW notification to the most recently interacting contact,
+# with debounce to avoid contact bounce / duplicate messages.
 
 p = Path('examples/companion_radio/MyMesh.cpp')
 s = p.read_text()
 
 anchor = '#define MAX_SIGN_DATA_LEN               (8 * 1024) // 8K\n'
-globals_block = '''#define MAX_SIGN_DATA_LEN               (8 * 1024) // 8K\n\n#ifdef REMOTE_GPIO_OUT1\nstatic unsigned long gpio_out1_timer_expiry = 0;\nstatic ContactInfo gpio_out1_timer_contact;\nstatic bool gpio_out1_timer_contact_valid = false;\n#endif\n'''
+globals_block = '''#define MAX_SIGN_DATA_LEN               (8 * 1024) // 8K\n\n#ifdef REMOTE_GPIO_OUT1\nstatic unsigned long gpio_out1_timer_expiry = 0;\nstatic ContactInfo gpio_out1_timer_contact;\nstatic bool gpio_out1_timer_contact_valid = false;\n#endif\n#ifdef REMOTE_GPIO_IN1\nstatic int gpio_in1_stable_state = HIGH;\nstatic int gpio_in1_last_raw_state = HIGH;\nstatic unsigned long gpio_in1_last_change_ms = 0;\nstatic ContactInfo gpio_in1_notify_contact;\nstatic bool gpio_in1_notify_contact_valid = false;\nstatic const unsigned long GPIO_IN1_DEBOUNCE_MS = 60;\n#endif\n'''
 if anchor not in s:
     raise SystemExit('globals anchor not found')
 s = s.replace(anchor, globals_block, 1)
@@ -22,6 +24,13 @@ old = '''void MyMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, 
 new = '''void MyMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp,
                            const char *text) {
   markConnectionActive(from); // in case this is from a server, and we have a connection
+
+#ifdef REMOTE_GPIO_IN1
+  // Remember the most recent peer that interacted with this node. Automatic
+  // input-change notifications are sent back to this contact.
+  gpio_in1_notify_contact = from;
+  gpio_in1_notify_contact_valid = true;
+#endif
 
   const char* gpio_reply = nullptr;
   char gpio_reply_buf[128];
@@ -92,6 +101,9 @@ old = '''void MyMesh::begin(bool has_display) {
 new = '''void MyMesh::begin(bool has_display) {
 #ifdef REMOTE_GPIO_IN1
   pinMode(REMOTE_GPIO_IN1, INPUT_PULLUP);
+  gpio_in1_stable_state = digitalRead(REMOTE_GPIO_IN1);
+  gpio_in1_last_raw_state = gpio_in1_stable_state;
+  gpio_in1_last_change_ms = millis();
 #endif
 #ifdef REMOTE_GPIO_OUT1
   digitalWrite(REMOTE_GPIO_OUT1, LOW);
@@ -102,9 +114,9 @@ if old not in s:
     raise SystemExit('begin anchor not found')
 s = s.replace(old, new, 1)
 
-# Timer service remains fully inside MyMesh.
-timer_method = '''\nvoid MyMesh::processGpioTimers() {\n#ifdef REMOTE_GPIO_OUT1\n  if (gpio_out1_timer_expiry != 0 && (long)(millis() - gpio_out1_timer_expiry) >= 0) {\n    digitalWrite(REMOTE_GPIO_OUT1, LOW);\n    gpio_out1_timer_expiry = 0;\n    if (gpio_out1_timer_contact_valid) {\n      uint32_t expected_ack = 0, est_timeout = 0;\n      sendMessage(gpio_out1_timer_contact, getRTCClock()->getCurrentTimeUnique(), 0,\n                  "OUT1 = OFF (Timer beendet)", expected_ack, est_timeout);\n      gpio_out1_timer_contact_valid = false;\n    }\n  }\n#endif\n}\n'''
-s += timer_method
+# Timer and input-change service remain fully inside MyMesh.
+service_method = '''\nvoid MyMesh::processGpioTimers() {\n#ifdef REMOTE_GPIO_OUT1\n  if (gpio_out1_timer_expiry != 0 && (long)(millis() - gpio_out1_timer_expiry) >= 0) {\n    digitalWrite(REMOTE_GPIO_OUT1, LOW);\n    gpio_out1_timer_expiry = 0;\n    if (gpio_out1_timer_contact_valid) {\n      uint32_t expected_ack = 0, est_timeout = 0;\n      sendMessage(gpio_out1_timer_contact, getRTCClock()->getCurrentTimeUnique(), 0,\n                  "OUT1 = OFF (Timer beendet)", expected_ack, est_timeout);\n      gpio_out1_timer_contact_valid = false;\n    }\n  }\n#endif\n\n#ifdef REMOTE_GPIO_IN1\n  const unsigned long now = millis();\n  const int raw = digitalRead(REMOTE_GPIO_IN1);\n\n  if (raw != gpio_in1_last_raw_state) {\n    gpio_in1_last_raw_state = raw;\n    gpio_in1_last_change_ms = now;\n  }\n\n  if (raw != gpio_in1_stable_state &&\n      (unsigned long)(now - gpio_in1_last_change_ms) >= GPIO_IN1_DEBOUNCE_MS) {\n    gpio_in1_stable_state = raw;\n\n    if (gpio_in1_notify_contact_valid) {\n      uint32_t expected_ack = 0, est_timeout = 0;\n      const char* msg = gpio_in1_stable_state == HIGH ? "IN1 = HIGH" : "IN1 = LOW";\n      sendMessage(gpio_in1_notify_contact, getRTCClock()->getCurrentTimeUnique(), 0,\n                  msg, expected_ack, est_timeout);\n    }\n  }\n#endif\n}\n'''
+s += service_method
 p.write_text(s)
 
 p = Path('examples/companion_radio/MyMesh.h')
@@ -115,7 +127,7 @@ if anchor not in s:
 s = s.replace(anchor, anchor + '  void processGpioTimers();\n', 1)
 p.write_text(s)
 
-# Disable sensor polling for this GPIO build and service output timer instead.
+# Disable sensor polling for this GPIO build and service output timer + input watcher instead.
 p = Path('examples/companion_radio/main.cpp')
 s = p.read_text()
 if '  sensors.begin();\n' not in s:
@@ -126,4 +138,4 @@ if '  sensors.loop();\n' not in s:
 s = s.replace('  sensors.loop();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.loop();\n#else\n  the_mesh.processGpioTimers();\n#endif\n', 1)
 p.write_text(s)
 
-print('XIAO GPIO V2: D6=IN1 INPUT_PULLUP, D7=OUT1, timer 1..86400s')
+print('XIAO GPIO V2 Build 2: D6=IN1 auto notify, D7=OUT1, debounce=60ms, timer 1..86400s')
