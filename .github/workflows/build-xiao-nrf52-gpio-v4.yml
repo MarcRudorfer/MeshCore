@@ -16,15 +16,28 @@ jobs:
         run: python tools/patch_xiao_gpio_v4_dual_input.py
       - name: Remap Wire and prepare V4 GPIO flags
         run: |
-          sed -i 's/-D PIN_WIRE_SDA=6/-D PIN_WIRE_SDA=16/' variants/xiao_nrf52/platformio.ini
-          sed -i 's/-D PIN_WIRE_SCL=7/-D PIN_WIRE_SCL=17/' variants/xiao_nrf52/platformio.ini
-          sed -i '/\${xiao_nrf52.build_flags}/a\  -D XIAO_GPIO_VARIANT=1\n  -D REMOTE_GPIO_IN1=6\n  -D REMOTE_GPIO_IN2=7' variants/xiao_nrf52/platformio.ini
+          sed -i 's/-D PIN_WIRE_SCL=D6/-D PIN_WIRE_SCL=16/' variants/xiao_nrf52/platformio.ini
+          sed -i 's/-D PIN_WIRE_SDA=D7/-D PIN_WIRE_SDA=17/' variants/xiao_nrf52/platformio.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('variants/xiao_nrf52/platformio.ini')
+          s=p.read_text()
+          env='[env:Xiao_nrf52_companion_radio_ble]'
+          pos=s.index(env)
+          tail=s[pos:]
+          anchor='  ${Xiao_nrf52.build_flags}\n'
+          i=tail.index(anchor)+pos+len(anchor)
+          flags='  -D XIAO_GPIO_VARIANT=1\n  -D REMOTE_GPIO_IN1=D6\n  -D REMOTE_GPIO_IN2=D7\n'
+          s=s[:i]+flags+s[i:]
+          p.write_text(s)
+          PY
       - name: Build XIAO nRF52 BLE V4
-        run: pio run -e xiao_nrf52_companion_radio_ble
+        run: pio run -e Xiao_nrf52_companion_radio_ble
       - name: Collect firmware
         run: |
           mkdir -p firmware-v4
-          cp .pio/build/xiao_nrf52_companion_radio_ble/firmware.hex firmware-v4/MeshCore-1.16.0-XIAO-nRF52-GPIO-V4-D6-IN1-D7-IN2.hex
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.hex firmware-v4/MeshCore-1.16.0-XIAO-nRF52-GPIO-V4-D6-IN1-D7-IN2.hex
+          cp .pio/build/Xiao_nrf52_companion_radio_ble/firmware.zip firmware-v4/MeshCore-1.16.0-XIAO-nRF52-GPIO-V4-D6-IN1-D7-IN2.zip
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
