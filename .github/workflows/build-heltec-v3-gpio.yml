@@ -1,9 +1,9 @@
-name: Build Heltec GPIO V5 Link Firmware
+name: Build Heltec V3 GPIO V5 Link PERSISTENT
 
 on:
   push:
     branches:
-      - meshcore-1.16-heltec-v3-gpio-v5-link
+      - meshcore-1.16-heltec-v3-gpio-v5-link-persistent-test
   workflow_dispatch:
 
 jobs:
@@ -19,28 +19,23 @@ jobs:
       - name: Apply Heltec GPIO V5 link patch
         run: python3 tools/patch_heltec_gpio_v5_link.py
 
+      - name: Add persistent LINK peer storage
+        run: python3 tools/patch_heltec_gpio_link_persistence.py
+
       - name: Build Heltec V3 BLE firmware
         run: pio run -e Heltec_v3_companion_radio_ble
 
       - name: Build Heltec V3 USB firmware
         run: pio run -e Heltec_v3_companion_radio_usb
 
-      - name: Build Heltec V4 BLE firmware
-        run: pio run -e heltec_v4_companion_radio_ble
-
-      - name: Build Heltec V4 USB firmware
-        run: pio run -e heltec_v4_companion_radio_usb
-
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V5-LINK-BLE.bin
-          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V5-LINK-USB.bin
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-GPIO-V5-LINK-BLE.bin
-          cp .pio/build/heltec_v4_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV4-GPIO-V5-LINK-USB.bin
+          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V5-LINK-PERSISTENT-BLE.bin
+          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V5-LINK-PERSISTENT-USB.bin
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-Heltec-GPIO-V5-LINK
+          name: MeshCore-1.16.0-HeltecV3-GPIO-V5-LINK-PERSISTENT
           path: out/*.bin
