@@ -16,14 +16,15 @@ jobs:
         uses: ./.github/actions/setup-build-environment
       - name: Apply real XIAO GPIO V1 command logic
         run: python3 tools/patch_xiao_gpio_v1.py
-      - name: Free D6/D7 from Wire and prepare GPIO flags
+      - name: Disable Wire init and prepare GPIO flags
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
+          # Keep PIN_WIRE_SCL/SDA defined because the nRF52 Wire library
+          # requires them at compile time, but do not initialize Wire.
           p=Path('variants/xiao_nrf52/platformio.ini')
           s=p.read_text()
-          s=s.replace('  -D PIN_WIRE_SCL=D6\n', '')
-          s=s.replace('  -D PIN_WIRE_SDA=D7\n', '')
           env='[env:Xiao_nrf52_companion_radio_ble]'
           pos=s.index(env)
           tail=s[pos:]
@@ -40,9 +41,13 @@ jobs:
 
           b=Path('variants/xiao_nrf52/XiaoNrf52Board.cpp')
           x=b.read_text()
-          x=x.replace('  Wire.begin();', '#ifndef XIAO_GPIO_NO_WIRE\n  Wire.begin();\n#endif')
+          old='  Wire.begin();'
+          new='#ifndef XIAO_GPIO_NO_WIRE\n  Wire.begin();\n#endif'
+          if old not in x:
+            raise SystemExit('Wire.begin anchor not found')
+          x=x.replace(old,new,1)
           b.write_text(x)
-          print('D6/D7 freed from I2C/Wire for GPIO V1')
+          print('Build 4: Wire pin defines retained, Wire.begin disabled; D6/D7 reserved for GPIO')
           PY
       - name: Build XIAO nRF52 BLE V1
         run: pio run -e Xiao_nrf52_companion_radio_ble
