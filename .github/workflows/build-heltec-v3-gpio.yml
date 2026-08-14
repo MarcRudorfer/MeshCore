@@ -1,4 +1,4 @@
-name: Build Heltec V4 V5 Diagnostic 4T NO BLE MSG WAITING
+name: Build Heltec V4 V5 Diagnostic 4U NO OFFLINE QUEUE
 
 on:
   push:
@@ -67,16 +67,19 @@ jobs:
       - name: Skip BLE message-waiting push
         run: python3 tools/diag4t_skip_ble_msg_waiting.py
 
+      - name: Skip offline queue for incoming contact message
+        run: python3 tools/diag4u_skip_offline_queue.py
+
       - name: Build Heltec V4 BLE firmware
         run: pio run -e heltec_v4_companion_radio_ble
 
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4T-NO-BLE-MSG-WAITING.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-V5-DIAG4U-NO-OFFLINE-QUEUE.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4T-NO-BLE-MSG-WAITING
+          name: MeshCore-1.16.0-HeltecV4-V5-DIAG4U-NO-OFFLINE-QUEUE
           path: out/*.bin
