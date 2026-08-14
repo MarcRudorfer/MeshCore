@@ -1,8 +1,7 @@
 from pathlib import Path
 
-# XIAO nRF52840 GPIO V1 Build 7
-# Keep the stock Wire/TWIM lifecycle completely intact. The workflow moves
-# PIN_WIRE_SCL/SDA away from D6/D7, leaving those pins exclusively for GPIO.
+# XIAO nRF52840 GPIO V1 Build 9
+# Stable Build-8 hardware setup stays untouched. Add timer commands only.
 
 p = Path('examples/companion_radio/MyMesh.cpp')
 s = p.read_text()
@@ -23,36 +22,74 @@ new = '''void MyMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, 
   markConnectionActive(from); // in case this is from a server, and we have a connection
 
   const char* gpio_reply = nullptr;
-  char gpio_reply_buf[96];
+  char gpio_reply_buf[128];
 
 #ifdef REMOTE_GPIO_OUT1
   if (strcmp(text, "OUT1 ON") == 0) {
+    gpio_out1_timer_expiry = 0;
+    gpio_out1_timer_contact_valid = false;
     digitalWrite(REMOTE_GPIO_OUT1, HIGH);
     gpio_reply = "OUT1 = ON";
   } else if (strcmp(text, "OUT1 OFF") == 0) {
+    gpio_out1_timer_expiry = 0;
+    gpio_out1_timer_contact_valid = false;
     digitalWrite(REMOTE_GPIO_OUT1, LOW);
     gpio_reply = "OUT1 = OFF";
+  } else if (strncmp(text, "OUT1 ", 5) == 0) {
+    const char* p = text + 5;
+    char* endp = nullptr;
+    unsigned long sec = strtoul(p, &endp, 10);
+    if (endp != p && *endp == '\\0' && sec > 0 && sec <= 86400UL) {
+      digitalWrite(REMOTE_GPIO_OUT1, HIGH);
+      gpio_out1_timer_expiry = millis() + sec * 1000UL;
+      gpio_out1_timer_contact = from;
+      gpio_out1_timer_contact_valid = true;
+      snprintf(gpio_reply_buf, sizeof(gpio_reply_buf), "OUT1 = ON (%lus Timer)", sec);
+      gpio_reply = gpio_reply_buf;
+    }
   }
 #endif
 
 #ifdef REMOTE_GPIO_OUT2
   if (strcmp(text, "OUT2 ON") == 0) {
+    gpio_out2_timer_expiry = 0;
+    gpio_out2_timer_contact_valid = false;
     digitalWrite(REMOTE_GPIO_OUT2, HIGH);
     gpio_reply = "OUT2 = ON";
   } else if (strcmp(text, "OUT2 OFF") == 0) {
+    gpio_out2_timer_expiry = 0;
+    gpio_out2_timer_contact_valid = false;
     digitalWrite(REMOTE_GPIO_OUT2, LOW);
     gpio_reply = "OUT2 = OFF";
+  } else if (strncmp(text, "OUT2 ", 5) == 0) {
+    const char* p = text + 5;
+    char* endp = nullptr;
+    unsigned long sec = strtoul(p, &endp, 10);
+    if (endp != p && *endp == '\\0' && sec > 0 && sec <= 86400UL) {
+      digitalWrite(REMOTE_GPIO_OUT2, HIGH);
+      gpio_out2_timer_expiry = millis() + sec * 1000UL;
+      gpio_out2_timer_contact = from;
+      gpio_out2_timer_contact_valid = true;
+      snprintf(gpio_reply_buf, sizeof(gpio_reply_buf), "OUT2 = ON (%lus Timer)", sec);
+      gpio_reply = gpio_reply_buf;
+    }
   }
 #endif
 
   if (strcmp(text, "STATUS") == 0 || strcmp(text, "STATUS?") == 0 || strcmp(text, "STATUS ?") == 0) {
-    const char* out1 = "NA";
-    const char* out2 = "NA";
+    char out1[40] = "NA";
+    char out2[40] = "NA";
 #ifdef REMOTE_GPIO_OUT1
-    out1 = digitalRead(REMOTE_GPIO_OUT1) == HIGH ? "ON" : "OFF";
+    if (digitalRead(REMOTE_GPIO_OUT1) == HIGH && gpio_out1_timer_expiry != 0) {
+      unsigned long rem = ((long)(gpio_out1_timer_expiry - millis()) > 0) ? (gpio_out1_timer_expiry - millis() + 999UL) / 1000UL : 0;
+      snprintf(out1, sizeof(out1), "ON(%lus)", rem);
+    } else strcpy(out1, digitalRead(REMOTE_GPIO_OUT1) == HIGH ? "ON" : "OFF");
 #endif
 #ifdef REMOTE_GPIO_OUT2
-    out2 = digitalRead(REMOTE_GPIO_OUT2) == HIGH ? "ON" : "OFF";
+    if (digitalRead(REMOTE_GPIO_OUT2) == HIGH && gpio_out2_timer_expiry != 0) {
+      unsigned long rem = ((long)(gpio_out2_timer_expiry - millis()) > 0) ? (gpio_out2_timer_expiry - millis() + 999UL) / 1000UL : 0;
+      snprintf(out2, sizeof(out2), "ON(%lus)", rem);
+    } else strcpy(out2, digitalRead(REMOTE_GPIO_OUT2) == HIGH ? "ON" : "OFF");
 #endif
     snprintf(gpio_reply_buf, sizeof(gpio_reply_buf), "OUT1=%s | OUT2=%s", out1, out2);
     gpio_reply = gpio_reply_buf;
@@ -88,8 +125,7 @@ if old not in s:
 s = s.replace(old, new, 1)
 p.write_text(s)
 
-# Do not touch Wire in main.cpp. Only prevent sensor polling for this GPIO build,
-# because there is no external I2C sensor attached to the remapped bus.
+# Main loop: keep Build-8 hardware path intact, disable unused sensors, add timer expiry handling.
 p = Path('examples/companion_radio/main.cpp')
 s = p.read_text()
 if '  sensors.begin();\n' not in s:
@@ -97,7 +133,36 @@ if '  sensors.begin();\n' not in s:
 s = s.replace('  sensors.begin();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.begin();\n#endif\n', 1)
 if '  sensors.loop();\n' not in s:
     raise SystemExit('sensors.loop anchor not found')
-s = s.replace('  sensors.loop();\n', '#ifndef XIAO_GPIO_VARIANT\n  sensors.loop();\n#endif\n', 1)
+timer_loop = '''#ifndef XIAO_GPIO_VARIANT
+  sensors.loop();
+#else
+#ifdef REMOTE_GPIO_OUT1
+  if (gpio_out1_timer_expiry != 0 && (long)(millis() - gpio_out1_timer_expiry) >= 0) {
+    digitalWrite(REMOTE_GPIO_OUT1, LOW);
+    gpio_out1_timer_expiry = 0;
+    if (gpio_out1_timer_contact_valid) {
+      uint32_t expected_ack = 0, est_timeout = 0;
+      the_mesh.sendMessage(gpio_out1_timer_contact, rtc_clock.getCurrentTimeUnique(), 0,
+                           "OUT1 = OFF (Timer beendet)", expected_ack, est_timeout);
+      gpio_out1_timer_contact_valid = false;
+    }
+  }
+#endif
+#ifdef REMOTE_GPIO_OUT2
+  if (gpio_out2_timer_expiry != 0 && (long)(millis() - gpio_out2_timer_expiry) >= 0) {
+    digitalWrite(REMOTE_GPIO_OUT2, LOW);
+    gpio_out2_timer_expiry = 0;
+    if (gpio_out2_timer_contact_valid) {
+      uint32_t expected_ack = 0, est_timeout = 0;
+      the_mesh.sendMessage(gpio_out2_timer_contact, rtc_clock.getCurrentTimeUnique(), 0,
+                           "OUT2 = OFF (Timer beendet)", expected_ack, est_timeout);
+      gpio_out2_timer_contact_valid = false;
+    }
+  }
+#endif
+#endif
+'''
+s = s.replace('  sensors.loop();\n', timer_loop, 1)
 p.write_text(s)
 
-print('XIAO GPIO V1 Build 7: Wire untouched; D6=OUT1 D7=OUT2')
+print('XIAO GPIO V1 Build 9: stable Build-8 hardware + OUT1/OUT2 timers')
