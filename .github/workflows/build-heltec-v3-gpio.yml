@@ -1,9 +1,9 @@
-name: Build Heltec V4 LINK CH1-CH3
+name: Build Heltec V4 LINK CH1-CH3 PERSISTENT
 
 on:
   push:
     branches:
-      - meshcore-1.16-heltec-v4-v5-diagnostic
+      - meshcore-1.16-heltec-v4-link-persistence-test
   workflow_dispatch:
 
 jobs:
@@ -18,6 +18,8 @@ jobs:
         run: python3 tools/patch_heltec_gpio_v4_final.py
       - name: Add explicit LINK channels 1 through 3
         run: python3 tools/patch_heltec_gpio_link_ch1_ch3_explicit.py
+      - name: Add persistent LINK peer storage
+        run: python3 tools/patch_heltec_gpio_link_persistence.py
       - name: Add verified Heltec V4 GPIO mapping
         run: |
           python3 - <<'PY'
@@ -46,9 +48,9 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1-CH3.bin
+          cp .pio/build/heltec_v4_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV4-LINK-CH1-CH3-PERSISTENT.bin
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV4-LINK-CH1-CH3
+          name: MeshCore-1.16.0-HeltecV4-LINK-CH1-CH3-PERSISTENT
           path: out/*.bin
