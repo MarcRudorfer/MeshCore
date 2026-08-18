@@ -1,4 +1,4 @@
-name: Build Heltec V3 GPIO V6 10OUT Link PERSISTENT
+name: Build Heltec V3 GPIO V6 7OUT Link PERSISTENT
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
       - name: Add persistent LINK peer storage
         run: python3 tools/patch_heltec_gpio_link_persistence.py
 
-      - name: Add V6 OUT5-OUT10 extension
+      - name: Add V6 OUT5-OUT7 extension
         run: python3 tools/patch_heltec_gpio_v6_outputs.py
 
       - name: Build Heltec V3 BLE firmware
@@ -34,11 +34,11 @@ jobs:
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V6-10OUT-LINK-PERSISTENT-BLE.bin
-          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V6-10OUT-LINK-PERSISTENT-USB.bin
+          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V6-7OUT-LINK-PERSISTENT-BLE.bin
+          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V6-7OUT-LINK-PERSISTENT-USB.bin
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV3-GPIO-V6-10OUT-LINK-PERSISTENT
+          name: MeshCore-1.16.0-HeltecV3-GPIO-V6-7OUT-LINK-PERSISTENT
           path: out/*.bin
