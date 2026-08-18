@@ -1,4 +1,4 @@
-name: Build Heltec V3 GPIO V8 7OUT PWM ADC Link PERSISTENT
+name: Build Heltec V3 GPIO V8 ADC Alarm PERSISTENT
 
 on:
   push:
@@ -12,39 +12,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-environment
-
       - name: Apply Heltec GPIO V5 link patch
         run: python3 tools/patch_heltec_gpio_v5_link.py
-
       - name: Add persistent LINK peer storage
         run: python3 tools/patch_heltec_gpio_link_persistence.py
-
       - name: Add V6 OUT5-OUT7 extension
         run: python3 tools/patch_heltec_gpio_v6_outputs.py
-
       - name: Add V7 dual PWM extension
         run: python3 tools/patch_heltec_gpio_v7_pwm.py
-
       - name: Replace PWM2 with V8 ADC1
         run: python3 tools/patch_heltec_gpio_v8_adc.py
-
+      - name: Add V8 persistent ADC alarm
+        run: python3 tools/patch_heltec_gpio_v8_adc_alarm.py
       - name: Build Heltec V3 BLE firmware
         run: pio run -e Heltec_v3_companion_radio_ble
-
       - name: Build Heltec V3 USB firmware
         run: pio run -e Heltec_v3_companion_radio_usb
-
       - name: Collect firmware
         run: |
           mkdir -p out
-          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V8-7OUT-1PWM-1ADC-LINK-PERSISTENT-BLE.bin
-          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V8-7OUT-1PWM-1ADC-LINK-PERSISTENT-USB.bin
-
+          cp .pio/build/Heltec_v3_companion_radio_ble/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V8-7OUT-1PWM-1ADC-ALARM-LINK-PERSISTENT-BLE.bin
+          cp .pio/build/Heltec_v3_companion_radio_usb/firmware.bin out/MeshCore-1.16.0-HeltecV3-GPIO-V8-7OUT-1PWM-1ADC-ALARM-LINK-PERSISTENT-USB.bin
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: MeshCore-1.16.0-HeltecV3-GPIO-V8-7OUT-1PWM-1ADC-LINK-PERSISTENT
+          name: MeshCore-1.16.0-HeltecV3-GPIO-V8-7OUT-1PWM-1ADC-ALARM-LINK-PERSISTENT
           path: out/*.bin
